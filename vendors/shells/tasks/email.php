@@ -52,6 +52,7 @@ class EmailTask extends Shell {
 		include CONFIGS . 'routes.php';
 		$pluginPath = App::pluginPath('reporting');
 		App::build(array( 'views' => array($pluginPath.'/views/')));
+		$this->config = Configure::read('Phantom.email_options');
 	} 
 
 	function reset(){
@@ -65,31 +66,15 @@ class EmailTask extends Shell {
 * @return boolean 
 */ 
     function send($settings = array()) {
-		$this->Email->from    = 'Phantom User <phantom@chynnadolls.com>';
+		$this->Email->from    = $this->config['from'];
 		$this->Email->to      = $this->to;
 		$this->Email->cc	  = $this->cc;
 		$this->Email->bcc	  = $this->bcc;
 		$this->Email->subject = $this->subject;
-		$this->Email->smtpOptions = array(
-			'port'=>'465', 
-			'timeout'=>'30',
-			'host' => 'ssl://smtp.gmail.com',
-			'username'=>'phantom@chynnadolls.com',
-			'password'=>'PhantomK33per!'
-		);
-		/*				$this->Email->smtpOptions = array(
-		'port'=>'26', 
-		'timeout'=>'30',
-		'host' => 'mail.ebrakeparts.com',
-		'username'=>'phantom+jamaisarriere.com',
-		'password'=>'Quikfir3!!'
-		);	*/
+		$this->Email->smtpOptions = $this->config['smtpOptions'];
 		$this->Email->delivery = $this->delivery;
 		$this->Email->template = $this->template;
 		$this->Email->sendAs = 'both';
-		//$this->set('invite',$invite);
-		//$this->Email->send();		 
-		//$this->settings($settings);
 		$this->sent = $this->Email->send();
 		$this->htmlMessage = $this->Email->htmlMessage;
 		$this->smtpError = $this->Email->smtpError;
