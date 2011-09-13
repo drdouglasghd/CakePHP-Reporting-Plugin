@@ -56,7 +56,7 @@ class ReportingSubscriptionFulfillmentShell extends Shell{
 			$this->Email->set('sql_results',$results);
 			$this->Email->set('report_data',$this->data);
 			$this->Email->set('full_base',true);
-			$this->Email->delivery = 'debug';
+			//$this->Email->delivery = 'debug';
 			//pr($this->Email->send());
 			if($this->Email->send()){
 				pr($this->Email->htmlMessage);
