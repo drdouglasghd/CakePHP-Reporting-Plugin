@@ -1,61 +1,88 @@
 <?php
 	//pr($this->data);
 	$reportDataInputs = array();
-	if(isset($this->data['ReportingReport']['config']['model_name']) && $this->data['ReportingReport']['config']['model_name'] != ''){
-		$reportDataInputs[] = $this->Html->tag('h2','Model Name: '.$this->data['ReportingReport']['config']['model_name']);
+
+	pr($this->data['ReportingReport']);
+	
+	if(isset($this->data['ReportingReport']['config']))
+	foreach($this->data['ReportingReport']['config'] as $key => $value){
+		if(!$value) unset($this->data['ReportingReport']['config'][$key]);
+		if($value && !is_array($value)) 
+			echo $this->Form->hidden('ReportingReport.config.'.$key,array('value'=>$value,'id'=>'ReportConfigDefault'.$key));
+	}
+
+	if(isset($this->data['ReportingReport']['config']))
+		extract($this->data['ReportingReport']['config']);
+
+	//pr($this->data['ReportingReport']);
+	
+	
+	//echo isset($data_source)?$data_source:'';
+	
+	if(!isset($data_source)){
+		echo $this->Form->input('ReportingReport.config.data_source',array(
+				'empty'=>'(Choose Data Source)',
+				'type'=>'select',
+				'onchange'=>"loadingText(); if($(this).val()) $(this).closest('form').submit()",
+				'options'=>array(
+					'model'=>'Defined Data Model',
+					'table'=>'Database Table',
+					'custom_query'=>'Custom SQL Query'
+				)));
 	} else {
-		$reportDataInputs[] = $this->Form->input('ReportingReport.config.database_id',array(
-		   'type'=>'select','options'=>$databases,'empty'=>'(Choose Database)',
-		   'onchange'=>"loadingText(); if($(this).val()) $(this).closest('form').submit()"));
-		if(isset($this->data['ReportingReport']['config']['database_id'])) 
-		 $reportDataInputs[] = $this->Form->input('ReportingReport.config.table_id',array(
-		   'type'=>'select','options'=>$tables,'empty'=>'(No Table - Custom Command)',
-		   'onchange'=>"loadingText(); if($(this).val()) $(this).closest('form').submit()"
-		 ));
-      }
-	if(!empty($reportDataInputs))
+		$defaultname = array();
+		switch($data_source){
+			case 'model':
+				if(!isset($model_name)){
+					echo $this->Form->input('ReportingReport.config.model_name',array(
+						   'type'=>'select','options'=>$reportModels,'empty'=>'(Choose Data Model)',
+						   'onchange'=>"loadingText(); if($(this).val()) $(this).closest('form').submit()"));
+				} else {
+					$defaultname[] = Inflector::humanize($this->data['ReportingReport']['config']['model_name']);
+				}
+				break;
+			case 'table':
+				if(!isset($database_id)){
+					echo $this->Form->input('ReportingReport.config.database_id',array(
+						   'type'=>'select','options'=>$databases,'empty'=>'(Choose Database)',
+						   'onchange'=>"loadingText(); if($(this).val()) $(this).closest('form').submit()"));
+				} elseif(!isset($table_id)){
+					echo $this->Form->input('ReportingReport.config.table_id',array(
+					   'type'=>'select','options'=>$tables,'empty'=>'(Choose Table)',
+					   'onchange'=>"loadingText(); if($(this).val()) $(this).closest('form').submit()"));
+				} else {
+					$defaultname[] = Inflector::humanize($this->data['ReportingReport']['config']['database_id']);
+					$defaultname[] = Inflector::humanize($this->data['ReportingReport']['config']['table_id']);
+				}
+				break;
+			case 'custom_query':
+				echo $this->Form->input('custom_command',array('class'=>'custom_command_input'));
+				if(!isset($database_id)){
+					echo $this->Form->input('ReportingReport.config.database_id',array(
+						   'type'=>'select','options'=>$databases,'empty'=>'(Choose Database)',
+						   'onchange'=>"loadingText(); if($(this).val()) $(this).closest('form').submit()"));
+				} elseif(!isset($this->data['ReportingReport']['custom_command'])) {
+					echo $this->Form->submit('Load Report Columns',array('name'=>'data[Report][action]','value'=>'load'));
+				}
+				$defaultname[] = Inflector::humanize('custom query');
+				break;
+		}
+	}
+
+	//if(!empty($reportDataInputs))
 		//echo $this->Html->tag('fieldset',$this->Html->tag('legend','Report Connection and Data').$this->Html->div('collapsible-fieldset',implode($reportDataInputs)),array('class'=>'report_connection'));
 
-	if(!isset($this->data['ReportingReport']['config']['model_name']) && !isset($this->data['ReportingReport']['config']['database_id'])){
-		echo $this->Form->input('ReportingReport.config.model_name',array(
-        'type'=>'select','options'=>$reportModels,'empty'=>'(Choose Report Data Source)',
-        'onchange'=>"loadingText(); if($(this).val()) $(this).closest('form').submit()"));
-        echo $this->Form->submit('Next',array('name'=>'data[Report][action]'));
-	} elseif(isset($this->data['ReportingReport']['config']['database_id']) && !isset($this->data['ReportingReport']['config']['model_name']) 
-        && !isset($this->data['ReportingReport']['config']['table_id']) && !isset($this->data['ReportingReport']['custom_command'])){
-		echo $this->Form->hidden('ReportingReport.config.database_id');
-		echo $this->Form->input('ReportingReport.config.table_id',array(
-		   'type'=>'select','options'=>$tables,'empty'=>'(No Table - Custom Command)',
-		   'onchange'=>"loadingText(); if($(this).val()) $(this).closest('form').submit()"
-		));
-   		echo $this->Form->submit('Next',array('name'=>'data[Report][action]'));
-    } elseif((isset($this->data['ReportingReport']['config']['database_id']) && isset($this->data['ReportingReport']['config']['table_id']) 
-      && $this->data['ReportingReport']['config']['table_id'] == '') || isset($this->data['ReportingReport']['custom_command'])) {
-		 echo $this->Form->input('name');
-		 echo $this->Form->hidden('ReportingReport.config.database_id');
-		 echo $this->Form->input('custom_command',array('class'=>'custom_command_input'));
-		 echo $this->Form->submit('Test',array('name'=>'data[Report][action]'));
-		 echo $this->Form->submit('Save',array('name'=>'data[Report][action]'));
 		 
-    } elseif(isset($schema)) {
+    if(isset($connection_ready) && $connection_ready) {
 
 		 $fields = array_combine(array_keys($schema),array_keys($schema));
-		 $defaultname = array();
-		 if(isset($this->data['ReportingReport']['config']['model_name'])){ 
-			$defaultname[] = Inflector::humanize($this->data['ReportingReport']['config']['model_name']);
-			echo $this->Form->hidden('ReportingReport.config.model_name'); }
-		 if(isset($this->data['ReportingReport']['config']['database_id'])){ 
-			$defaultname[] = Inflector::humanize($this->data['ReportingReport']['config']['database_id']);
-			echo $this->Form->hidden('ReportingReport.config.database_id'); }
-		 if(isset($this->data['ReportingReport']['config']['table_id'])){ 
-			$defaultname[] = Inflector::humanize($this->data['ReportingReport']['config']['table_id']);
-			echo $this->Form->hidden('ReportingReport.config.table_id'); }
 
 		// Get Name 
 		echo $this->Form->input('name',array('default'=>implode(' ',$defaultname)));
 		echo $this->Form->input('url_key',array('default'=>Inflector::slug(implode(' ',$defaultname))));
 		 
 		// Get Fields
+		if($data_source != 'custom_query')
 		echo $this->Form->input('ReportingReport.config.fieldList',array('default'=>'*',
 			'label'=>'Fields to Select','div'=>'required','after'=>'Use comma separated list. (SQL fragments are ok)'));
 
@@ -81,71 +108,104 @@
 			unset($this->data['ReportingReport']['config']['report_filters']);
 			$this->data['ReportingReport']['config']['report_filters'][] = $condss;
 		}
+	
+		if($data_source != 'custom_query'){
+			// Get Order List
+			$reportOptions = $this->Form->input('ReportingReport.config.order',array(
+				'after'=>'Use comma separated list. Use space for direction. (i.e. created DESC, username ASC)(SQL Fragments OK)'));
 
-		// Get Order List
-		$reportOptions = $this->Form->input('ReportingReport.config.order',array(
-			'after'=>'Use comma separated list. Use space for direction. (i.e. created DESC, username ASC)(SQL Fragments OK)'));
+			// Get Group List
+			$reportOptions .= $this->Form->input('ReportingReport.config.group',array(
+				'after'=>'Use comma separated list. (SQL Fragments OK)'));
 
-		// Get Group List
-		$reportOptions .= $this->Form->input('ReportingReport.config.group',array(
-			'after'=>'Use comma separated list. (SQL Fragments OK)'));
+			$reportOptions .= $this->Form->input('ReportingReport.config.limit',array(
+				'after'=>'Use simple interger. Defaults to 20.'));
 
-		$reportOptions .= $this->Form->input('ReportingReport.config.limit',array(
-			'after'=>'Use simple interger. Defaults to 20.'));
+			$reportOptions .= $this->Form->input('ReportingReport.config.use_paginator',array(
+				'after'=>' (Use automatic paginator)','type'=>'checkbox'));
+			
+			echo $this->Html->tag('fieldset',$this->Html->tag('legend','Report Options').$this->Html->div('collapsible-fieldset',$reportOptions),array('class'=>'report_options'));
 
-		$reportOptions .= $this->Form->input('ReportingReport.config.use_paginator',array(
-			'after'=>' (Use automatic paginator)','type'=>'checkbox'));
-		
-		echo $this->Html->tag('fieldset',$this->Html->tag('legend','Report Options').$this->Html->div('collapsible-fieldset',$reportOptions),array('class'=>'report_options'));
-		
+		}
 		// Submit buttons
 		if(isset($reportColumns)){
 			// Conditions builder
 			$divs = '';
-			$conditionColumns = $organicColumns;
-			array_unshift($conditionColumns,array('custom_where_block'=>'Where Block'));
-
-			// Pre load the conditions array with a template key, to force at least one loop for template creation
-			$this->data['ReportingReport']['config']['conditions']['@'] = array();
 			
-			if(isset($this->data['ReportingReport']['config']['conditions']) && !empty($this->data['ReportingReport']['config']['conditions'])){
-				$cc = 0; //$cc used to reset condition index
-				foreach($this->data['ReportingReport']['config']['conditions'] as $cid => $cond){
-					
-					// Reset index if not template
-					if($cid != '@' && !empty($cond)) $cid == $cc;
-					
-					// Build condition form
-					$content = $this->Form->input('ReportingReport.config.conditions.'.$cid.'.field_id',array(
-						'class'=>'field_id-handle conditional-field',
-						'type'=>'select','options'=>$conditionColumns,'empty'=>'(Choose Field or Where Block)',
-						'after'=>'Leave Blank to Not Filter.'
-						));
-					$content .= $this->Form->input('ReportingReport.config.conditions.'.$cid.'.where_block',array(
-						'div'=>'where_input','class'=>'conditional-field','after'=>'omit WHERE, it is assumed'));
-					$content .= $this->Form->input('ReportingReport.config.conditions.'.$cid.'.operator',array(
-						'div'=>'dependent-field_id','class'=>'conditional-field report_config_condition_operator','after'=>' = (default), LIKE, IN, NOT, <>, etc...'));
-					$content .= $this->Form->input('ReportingReport.config.conditions.'.$cid.'.value',array(
-						'div'=>'dependent-field_id report_config_condition_value_div','class'=>'conditional-field report_config_condition_value','after'=>'For LIKE, use % wildcards. For IN use (1,2,nn) syntax.'));
-					$content .= $this->Html->link('Remove Condition',array('#remove-condition'),array('class'=>'condition-remove-handle'));
+			if($data_source != 'custom_query'){
+				$conditionColumns = $organicColumns;
+				array_unshift($conditionColumns,array('custom_where_block'=>'Where Block'));
 
-					if($cid == '@' && empty($cond)){
-						$conditionInputDiv = $this->Html->tag('div',$content,array(
-							'class'=>'report-condition','id'=>'newestCondition','style'=>'border:1px #ddd solid; padding-left:1em;'));
+				// Pre load the conditions array with a template key, to force at least one loop for template creation
+				$this->data['ReportingReport']['config']['conditions']['@'] = array();
+				
+				if(isset($this->data['ReportingReport']['config']['conditions']) && !empty($this->data['ReportingReport']['config']['conditions'])){
+					$cc = 0; //$cc used to reset condition index
+					foreach($this->data['ReportingReport']['config']['conditions'] as $cid => $cond){
+						
+						// Reset index if not template
+						if($cid != '@' && !empty($cond)) $cid == $cc;
+						
+						// Build condition form
+						$content = $this->Form->input('ReportingReport.config.conditions.'.$cid.'.field_id',array(
+							'class'=>'field_id-handle conditional-field',
+							'type'=>'select','options'=>$conditionColumns,'empty'=>'(Choose Field or Where Block)',
+							'after'=>'Leave Blank to Not Filter.'
+							));
+						$content .= $this->Form->input('ReportingReport.config.conditions.'.$cid.'.where_block',array(
+							'div'=>'where_input','class'=>'conditional-field','after'=>'omit WHERE, it is assumed'));
+						$content .= $this->Form->input('ReportingReport.config.conditions.'.$cid.'.operator',array(
+							'div'=>'dependent-field_id','class'=>'conditional-field report_config_condition_operator','after'=>' = (default), LIKE, IN, NOT, <>, etc...'));
+						$content .= $this->Form->input('ReportingReport.config.conditions.'.$cid.'.value',array(
+							'div'=>'dependent-field_id report_config_condition_value_div','class'=>'conditional-field report_config_condition_value','after'=>'For LIKE, use % wildcards. For IN use (1,2,nn) syntax.'));
+						$content .= $this->Html->link('Remove Condition',array('#remove-condition'),array('class'=>'condition-remove-handle'));
+
+						if($cid == '@' && empty($cond)){
+							$conditionInputDiv = $this->Html->tag('div',$content,array(
+								'class'=>'report-condition','id'=>'newestCondition','style'=>'border:1px #ddd solid; padding-left:1em;'));
+						} else {
+							// Append report conditions into conditions div
+							$divs .= $this->Html->tag('div',$content,array('class'=>'report-condition','id'=>'report-condition_'.$cid,'style'=>'border:1px #ddd solid; padding-left:1em;'));
+						}
+						$content = ''; // clear content variable
+						$cc++; // Increment condition array index
+					}
+				}
+				
+				$divs .= $this->Html->link('Add Condition',array('#add-condition'),array('class'=>'add_condition_handle'));
+						
+				// Wrap Conditions in Fieldset
+				echo $this->Html->tag('fieldset',$this->Html->tag('legend','Report Conditions').$this->Html->div('collapsible-fieldset',$divs),array('class'=>'report_conditions'));
+
+			
+				//
+				// Create Report Filters
+				//
+				$filters = isset($this->data['ReportingReport']['config']['report_filters'])?$this->data['ReportingReport']['config']['report_filters']:array();
+				$filters['@'] = array();
+				$ff = 0; $divs = '';
+				foreach($filters as $fid => $filter){
+					if($fid != '@' && !empty($filter)) $fid == $ff;
+					$content = $this->Form->input('ReportingReport.config.report_filters.'.$fid.'.field_name',array('options'=>$organicColumns,
+						'type'=>'select','label'=>'Field for Filter','after'=>'Field for dynamic report filtering.','class'=>'report-filter-field',
+						'value'=>isset($filters[$fid]['field_name'])?$filters[$fid]['field_name']:'',
+						'default'=>isset($filters[$fid]['field_name'])?$filters[$fid]['field_name']:''
+					));
+					$content .= $this->Html->link('Remove Filter',array('#remove-filter'),array('class'=>'filter-remove-handle'));
+					$ff++;
+					if($fid == '@' && empty($filter)){
+						$filterInputDiv = $this->Html->tag('div',$content,array(
+							'class'=>'report-filter','id'=>'newestFilter','style'=>'border:1px #ddd solid; padding-left:1em;'));
 					} else {
 						// Append report conditions into conditions div
-						$divs .= $this->Html->tag('div',$content,array('class'=>'report-condition','id'=>'report-condition_'.$cid,'style'=>'border:1px #ddd solid; padding-left:1em;'));
-					}
-					$content = ''; // clear content variable
-					$cc++; // Increment condition array index
+						$divs .= $this->Html->tag('div',$content,array('class'=>'report-filter','id'=>'report-filter_'.$fid,'style'=>'border:1px #ddd solid; padding-left:1em;'));
+					}				
 				}
-			}
+				$divs .= $this->Html->link('Add Filter',array('#add-filter'),array('class'=>'add_filter_handle'));
+				echo $this->Html->tag('fieldset',$this->Html->tag('legend','Report Filters').$this->Html->div('collapsible-fieldset',$divs),array('class'=>'report_filters'));
+
+			} // Not Custom Query
 			
-			$divs .= $this->Html->link('Add Condition',array('#add-condition'),array('class'=>'add_condition_handle'));
-
-			// Wrap Conditions in Fieldset
-			echo $this->Html->tag('fieldset',$this->Html->tag('legend','Report Conditions').$this->Html->div('collapsible-fieldset',$divs),array('class'=>'report_conditions'));
-
 			// Report Fields
 			$reportCols = $this->Form->input('ReportingReport.config.renderAs',array(
 				'options'=>array(
@@ -236,31 +296,6 @@
 			));
 			echo $this->Html->tag('fieldset',$this->Html->tag('legend','Report Render Blocks').$this->Html->div('collapsible-fieldset',$settingsForm),array('class'=>'report_settings'));
 			
-			//
-			// Create Report Filters
-			//
-			$filters = isset($this->data['ReportingReport']['config']['report_filters'])?$this->data['ReportingReport']['config']['report_filters']:array();
-			$filters['@'] = array();
-			$ff = 0; $divs = '';
-			foreach($filters as $fid => $filter){
-				if($fid != '@' && !empty($filter)) $fid == $ff;
-				$content = $this->Form->input('ReportingReport.config.report_filters.'.$fid.'.field_name',array('options'=>$organicColumns,
-					'type'=>'select','label'=>'Field for Filter','after'=>'Field for dynamic report filtering.','class'=>'report-filter-field',
-					'value'=>isset($filters[$fid]['field_name'])?$filters[$fid]['field_name']:'',
-					'default'=>isset($filters[$fid]['field_name'])?$filters[$fid]['field_name']:''
-				));
-				$content .= $this->Html->link('Remove Filter',array('#remove-filter'),array('class'=>'filter-remove-handle'));
-				$ff++;
-				if($fid == '@' && empty($filter)){
-					$filterInputDiv = $this->Html->tag('div',$content,array(
-						'class'=>'report-filter','id'=>'newestFilter','style'=>'border:1px #ddd solid; padding-left:1em;'));
-				} else {
-					// Append report conditions into conditions div
-					$divs .= $this->Html->tag('div',$content,array('class'=>'report-filter','id'=>'report-filter_'.$fid,'style'=>'border:1px #ddd solid; padding-left:1em;'));
-				}				
-			}
-			$divs .= $this->Html->link('Add Filter',array('#add-filter'),array('class'=>'add_filter_handle'));
-			echo $this->Html->tag('fieldset',$this->Html->tag('legend','Report Filters').$this->Html->div('collapsible-fieldset',$divs),array('class'=>'report_filters'));
 		
 		} // if/ReportColumns
 
@@ -276,12 +311,20 @@
 </style>
 <script type="text/javascript">
 
-	var conditionCount = <?php echo count($this->data['ReportingReport']['config']['conditions']); ?>;
+	var conditionCount = <?php echo (isset($conditions))?count($conditions):0; ?>;
+	<?php if(isset($conditionInputDiv)){ ?>
 	var conditionInputs = {
 		and:<?php echo isset($conditionInputDiv)?json_encode($conditionInputDiv):''; ?>
 	}
-	var filterCount = <?php echo count($filters); ?>;
+	<?php } else { ?>
+	var conditionInputs = null;
+	<?php } ?>
+	var filterCount = <?php echo isset($filters)?count($filters):0; ?>;
+	<?php if(isset($filterInputDiv)){ ?>
 	var filterInputs = <?php echo isset($filterInputDiv)?json_encode($filterInputDiv):''; ?>;
+	<?php } else { ?>
+	var filterInputs = null;
+	<?php } ?>
 
 	var columnCount = <?php echo count($this->data['ReportingReport']['config']['defined_columns']); ?>;
 	var columnInputs = <?php echo isset($columnsInputDiv)?json_encode($columnsInputDiv):''; ?>;
@@ -326,14 +369,7 @@
 			return false;
 		} else {
 			$(this).closest('div.report-column').find('input.column-label').qtip('hide');
-			//$(this).closest('div.report-column').find('input.column-label').errorClass('validation-error');
 		}
-		//if($('ul.defined-columns').length == 0){
-		//	$('<ul/>',{class:'defined-columns sortable-columns'}).insertBefore($('.report-column:first'));
-		//}
-		//var editLink = $('<a/>',{html:'Edit',href:'#edit-column',class:'column-edit-handle'})
-		//columnLabel += ' ' + editLink;
-		//$('<li/>',{class:'defined-column',html:columnLabel}).appendTo($('ul.defined-columns'));
 		if($(this).closest('div.report-column').find('a.completed-column').length == 0){
 			$('<a/>',{class:'completed-column column-edit-handle',html:columnLabel,href:'#edit-column'})
 				.prependTo($(this).closest('div.report-column'));
@@ -414,9 +450,10 @@
 			if($(this).attr('for')) $(this).attr('for',$(this).attr('for').replace('@',columnCount));
 		});
 		if($('.add-column-dropdown').val()){
+			var label = $('.add-column-dropdown option[value="' + $('.add-column-dropdown').val() + '"]').html();
 			var token = '{{field:' + $('.add-column-dropdown').val() + '}}';
 			$('#newestColumn .column-content').val(token);
-			$('#newestColumn .column-label').val($('.add-column-dropdown').val());
+			$('#newestColumn .column-label').val(label);
 			$(this).val('');
 			$('.column-complete-handle').trigger('click');
 		}

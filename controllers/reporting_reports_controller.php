@@ -5,7 +5,9 @@ class ReportingReportsController extends ReportingAppController {
 
 	function beforeFilter(){
 		parent::beforeFilter();
-		$this->ReportingReport->setAppUser($this->appUser);
+		if(Configure::read('Reporting.use_app_user')){
+			$this->ReportingReport->setAppUser($this->appUser);
+		}
 		//
 		// If Report Filter Submitted, convert form data to named parameters, and redirect
 		//
@@ -74,6 +76,7 @@ class ReportingReportsController extends ReportingAppController {
 	}
 
 	function add() {
+		$config = $this->data['ReportingReport']['config'];
 		if(isset($this->data['ReportingReport']['action']) && $this->data['ReportingReport']['action'] == 'Save'){
 			$this->_configDataToXml();
 			$this->ReportingReport->create();
@@ -84,30 +87,42 @@ class ReportingReportsController extends ReportingAppController {
 				$this->Session->setFlash(__('The report could not be saved. Please, try again.', true));
 			}
 		} else {
-			 //pr($this->data);
-			 //pr($this->data);
-			 //$this->ReportingReport->_schema['custom_command'] = array('type'=>'text');
-			$this->set('reportModels',$this->ReportingReport->getReportModels());
-			if((isset($this->data['ReportingReport']['config']['model_name']) && $this->data['ReportingReport']['config']['model_name'] != '') 
-				|| (isset($this->data['ReportingReport']['config']['database_id']) 
-				&& (isset($this->data['ReportingReport']['config']['table_id']) || isset($this->data['ReportingReport']['custom_command'])))){
-					$this->ReportingReport->data = $this->data;
-					$this->ReportingReport->_processReportConfig();
-					$this->data = $this->ReportingReport->data;
-					$this->set('schema',$this->ReportingReport->ReportModel->_schema);
-					$this->set('recordCount',$this->ReportingReport->ReportModel->find('count'));
-					if(isset($this->ReportingReport->columns)) $this->set('reportColumns',$this->ReportingReport->columns['ReportingReport']);
-					if(isset($this->ReportingReport->columns)) $this->set('organicColumns',$this->ReportingReport->columns['organic']);
-
-			}
-			if((isset($this->data['ReportingReport']['config']['model_name']) && $this->data['ReportingReport']['config']['model_name'] == '') 
-				|| !isset($this->data['ReportingReport']['config']['model_name'])){
-				if(!isset($this->data['ReportingReport']['config']['database_id'])) $this->Session->setFlash('Please Choose Report Data Model');
-					$this->_setDatabases();
-			} 
-			if(isset($this->data['ReportingReport']['config']['database_id']) && $this->data['ReportingReport']['config']['database_id'] != ''){
-				if(!isset($this->data['ReportingReport']['config']['table_id'])) $this->Session->setFlash('Please Choose a Table for the Report');
-					$this->_setTables();
+			$this->data['ReportingReport']['config']['connection_ready'] = $connectionReady = false;
+			if(isset($config['data_source']))
+				switch($config['data_source']){
+					case 'model':
+						if(isset($config['model_name'])){
+							$this->data['ReportingReport']['config']['connection_ready'] = $connectionReady = true;
+						} else {
+							$this->set('reportModels',$this->ReportingReport->getReportModels());
+						}
+						break;
+					case 'table':
+						if(isset($config['database_id']) && isset($config['table_id'])){
+							$this->data['ReportingReport']['config']['connection_ready'] = $connectionReady = true;
+						} else {
+							$this->_setDatabases();
+							if(isset($config['database_id'])) $this->_setTables();
+						}
+						break;
+					case 'custom_query':
+						if(isset($config['database_id']) && isset($this->data['ReportingReport']['custom_command'])){
+							$this->data['ReportingReport']['config']['connection_ready'] = $connectionReady = true;
+						} else {
+							$this->_setDatabases();
+						}
+						break;
+					default:
+					
+				}
+			if(isset($config['data_source']) && $connectionReady){
+				$this->ReportingReport->data = $this->data;
+				$this->ReportingReport->_processReportConfig();
+				$this->data = $this->ReportingReport->data;
+				$this->set('schema',$this->ReportingReport->ReportModel->_schema);
+				$this->set('recordCount',$this->ReportingReport->ReportModel->find('count'));
+				if(isset($this->ReportingReport->columns)) $this->set('reportColumns',$this->ReportingReport->columns['ReportingReport']);
+				if(isset($this->ReportingReport->columns)) $this->set('organicColumns',$this->ReportingReport->columns['organic']);
 			}
 		}
 	}
@@ -143,7 +158,11 @@ class ReportingReportsController extends ReportingAppController {
 				$this->paginate[$this->ReportingReport->ReportModel->name] = $this->ReportingReport->options;
 				$this->set('sql_results',$this->paginate($this->ReportingReport->ReportModel->name));
 			} else {
-				$this->set('sql_results',$this->ReportingReport->ReportModel->find('all',$this->ReportingReport->options));
+				if(isset($this->ReportingReport->ReportModel->customQuery)){
+					$this->set('sql_results',$this->ReportingReport->ReportModel->query($this->ReportingReport->ReportModel->customQuery));
+				} else {
+					$this->set('sql_results',$this->ReportingReport->ReportModel->find('all',$this->ReportingReport->options));
+				}
 			}
 		}
 		$this->ReportingReport->_reportParams('prep');	
