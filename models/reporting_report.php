@@ -46,17 +46,16 @@ class ReportingReport extends ReportingAppModel {
 
 	function beforeValidate(){
 		$this->_urlKeyFromName();
-		//pr($this->data); die();
-		if(isset($this->data['ReportingReport']['profile_id']) && $this->data['ReportingReport']['profile_id'] == false){
-			$this->data['ReportingReport']['profile_id'] = parent::$activeUser['User']['active_profile'];
-			$this->data['ReportingReport']['user_id'] = parent::$activeUser['User']['id'];
+		if(!isset($this->data['ReportingReport']['id']) && isset(AppModel::$activeUser)){
+			$this->data['ReportingReport']['profile_id'] = AppModel::$activeUser['User']['active_profile'];
+			$this->data['ReportingReport']['user_id'] = AppModel::$activeUser['User']['id'];
 		}
 	}
 
 	function beforeFind($qd){
-		if(isset(parent::$activeUser['User']['active_profile'])){
+		if(isset(AppModel::$activeUser)){
 			if(!$this->appAdmin){
-				$qd['conditions'][] = array('ReportingReport.profile_id'=>parent::$activeUser['User']['active_profile']);
+				$qd['conditions'][] = array('ReportingReport.profile_id'=>AppModel::$activeUser['User']['active_profile']);
 			}
 		}	
 		return $qd;
@@ -133,7 +132,18 @@ class ReportingReport extends ReportingAppModel {
 			$this->ReportModel = $this;
 		}
         if(isset($this->data['ReportingReport']['custom_command']) && $this->data['ReportingReport']['custom_command']){
-        	return $this->ReportModel->query($this->data['ReportingReport']['custom_command']);
+			$this->ReportModel->customQuery = $this->ReportModel->statement = $this->data['ReportingReport']['custom_command'];
+			$results = $this->ReportModel->query($this->ReportModel->customQuery);
+			if(isset($results[0])){
+				foreach($results[0] as $model => $fields) {
+					foreach($fields as $field => $fieldvalue){
+						$reportColumns[$model.'.'.$field] = $model.'.'.$field;
+					}
+				}
+				$this->columns['ReportingReport'] = $reportColumns;
+				$this->columns['organic'] = $reportColumns;	
+			}
+			//return $this->ReportModel->query($this->data['ReportingReport']['custom_command']);
         } else {
           $this->options = array('limit'=>20);
           if(isset($this->data['ReportingReport']['config']['fieldList']) && $this->data['ReportingReport']['config']['fieldList']){
@@ -223,20 +233,13 @@ class ReportingReport extends ReportingAppModel {
 				}
 			}
 
-          }
-        	$dbo = $this->ReportModel->getDataSource();
+		  }
+			$dbo = $this->ReportModel->getDataSource();
 			$stmtOptions = array(
 					'table' => $dbo->fullTableName($this->ReportModel),
 					'alias' => $this->ReportModel->name,
 					'offset' => null,
-					'joins' => array(
-						array(
-							'table'=>'profiles',
-							'alias'=>'Profile',
-							'conditions'=>'Company.profile_id = Profile.id',
-							'type'=>'left'
-						)
-					),
+					'joins' => array(),
 					'conditions' => array(),
 					'fields' => array(),
 					'group' => '',
@@ -244,7 +247,7 @@ class ReportingReport extends ReportingAppModel {
 				);
 			$stmtOptions = array_merge($stmtOptions,$this->options);
 			$this->statement = $dbo->buildStatement($stmtOptions,$this->ReportModel);
-		}
+		} // Not Custom
 	}
 	
 	function _reportParams($callType = 'list'){

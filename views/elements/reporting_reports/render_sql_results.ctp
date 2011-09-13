@@ -2,27 +2,40 @@
 <?php 
 //pr($statement);
 if(isset($sql_results)){
+	if(isset($report_data)) $this->data = $report_data;
 	// Render Before Block
 	if(isset($this->data['ReportingReport']['config']['beforeReportBlock'])) echo $this->data['ReportingReport']['config']['beforeReportBlock'];
 
 	// Report Edit Link
-	if($appUser['User']['group_id'] == 1) 
-		$reportLinks[] = $this->Html->link('Edit Report',array('controller'=>'reports','action'=>'edit',$this->data['ReportingReport']['id']),array('class'=>'edit-report-handle'));
+	if(isset($appUser) && $appUser['User']['group_id'] == 1) 
+		$reportLinks[] = $this->Html->link('Edit Report',array('plugin'=>'reporting','controller'=>'reporting_reports','action'=>'edit',$this->data['ReportingReport']['id']),array('class'=>'edit-report-handle'));
 		
 	// Report Url
-	$reportLinks[] = $this->Html->link('Report Link',Router::url(),array('class'=>'report-url'));
+	$url = Router::url();
+	//echo spr($url);
+	if(empty($url) || $url = '/') $url = array(
+		'full_base'=>(isset($full_base)?$full_base:false),
+		'plugin'=>'reporting','controller'=>'reporting_reports','action'=>'view',$this->data['ReportingReport']['id']
+	);
+	$reportLinks[] = $this->Html->link('Report Link',$url,array('class'=>'report-url'));
 
 	// Report Url
-	$reportLinks[] = $this->Html->link('SQL Statement',array('#show-sql'),array('onclick'=>"$('.sql_statement').toggle();return false;"));
+	if(isset($statement)) $reportLinks[] = $this->Html->link('SQL Statement',array('#show-sql'),array('onclick'=>"$('.sql_statement').toggle();return false;"));
 
 	// Report Name
-	echo $this->Html->tag('h2',$this->data['ReportingReport']['name'] . $this->Html->tag('span',implode(' - ',$reportLinks),array('class'=>'report-header-links')));
+	if(isset($full_base)){
+		$title = $this->data['ReportingReport']['name'];
+		echo $this->Html->tag('p',implode(' - ',$reportLinks));
+	} else {
+		$title = $this->data['ReportingReport']['name'] . $this->Html->tag('span',implode(' - ',$reportLinks),array('class'=>'report-header-links'));
+	}
+	echo $this->Html->tag('h2',$title);
 
-	echo $this->Html->div('sql_statement',spr($statement),array('style'=>'display:none;'));
+	if(isset($statement)) echo $this->Html->div('sql_statement',spr($statement) . spr($sql_results) ,array('style'=>'display:none;'));
 
 	// Report Filters
 	//pr($this->data['ReportingReport']['config']['report_filters']);
-	if(!empty($this->data['ReportingReport']['config']['report_filters'])){
+	if(!empty($this->data['ReportingReport']['config']['report_filters']) && !isset($full_base)){
 		foreach($this->data['ReportingReport']['config']['report_filters'] as $fid => $filter){
 			$filterInputs[] = $this->Form->hidden('Filter.'.$filter['field_name'].'.field_name',array(
 				'type'=>'text','id'=>'filter-field_'.$fid,'value'=>$filter['field_name']
@@ -73,7 +86,7 @@ if(isset($sql_results)){
  	}
 
 	// Display Paginator on Top
-	if(isset($this->data['ReportingReport']['config']['use_paginator']) && $this->data['ReportingReport']['config']['use_paginator'] && isset($sql_results)){
+	if(isset($this->data['ReportingReport']['config']['use_paginator']) && $this->data['ReportingReport']['config']['use_paginator'] && isset($sql_results) && !isset($full_base)){
 		$extraParams = $this->params['url'];
 		if(isset($extraParams['url'])) unset($extraParams['url']);
 		if(!empty($extraParams)) foreach($extraParams as $key => $value){
@@ -105,7 +118,7 @@ if(isset($sql_results)){
 	}
 	
 	// Display Paginator on Bottom
-	if(isset($this->data['ReportingReport']['config']['use_paginator']) && $this->data['ReportingReport']['config']['use_paginator'] && isset($sql_results)){
+	if(isset($this->data['ReportingReport']['config']['use_paginator']) && $this->data['ReportingReport']['config']['use_paginator'] && isset($sql_results) && !isset($full_base)){
 		$extraParams = $this->params['url'];
 		if(isset($extraParams['url'])) unset($extraParams['url']);
 		if(!empty($extraParams)) foreach($extraParams as $key => $value){
@@ -119,9 +132,8 @@ if(isset($sql_results)){
   
 	// Render After Report Block
 	if(isset($this->data['ReportingReport']['config']['afterReportBlock'])) echo $this->data['ReportingReport']['config']['afterReportBlock'];
-
-} // $sql_results is set?
-?>
+	if(!isset($full_base)){
+	?>
 		<script type="text/javascript">
 			$('.paging a, a.edit-report-handle').click(function(event){
 				var a = $(this);
@@ -141,4 +153,10 @@ if(isset($sql_results)){
 				event.preventDefault();
 			});
 		</script>
+
+	<?php
+	}
+} // $sql_results is set?
+
+?>
 </div>
